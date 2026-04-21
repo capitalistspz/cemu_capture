@@ -26,7 +26,7 @@ namespace cemu_capture
         void AddDevice(const std::shared_ptr<V4L2Source>&);
 
     private:
-        std::atomic_flag m_hasNewEvent;
+        std::condition_variable m_eventCond;
         std::mutex m_eventMutex;
         std::vector<epoll_event> m_newEvents;
         std::jthread m_thread;
