@@ -14,6 +14,7 @@
 #include "V4L2Context.hpp"
 #include "ConversionTable.hpp"
 #include "V4L2Ioctls.hpp"
+
 namespace cemu_capture
 {
     constexpr static uint32_t ToV4L2Format(ImageFormat format)
@@ -215,7 +216,8 @@ namespace cemu_capture
             if (res != 0)
             {
                 if (errno == EINVAL)
-                    m_ctx->Log(LogLevel::Warning, "Device does not support {} image formats", format.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ? "multiplanar" : "uniplanar");
+                    m_ctx->Log(LogLevel::Warning, "Device does not support {} image formats",
+                               format.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ? "multiplanar" : "uniplanar");
                 else
                     m_ctx->Log(LogLevel::Error, "Failed to set format: {}", std::strerror(errno));
                 return false;
@@ -255,7 +257,6 @@ namespace cemu_capture
         }
 
         AllocateAndQueueBuffers(20, format);
-
 
         constexpr int enable = 1;
         // epoll_wait considers the fd errored if stream is not on
@@ -349,7 +350,6 @@ namespace cemu_capture
                 {
                     if (conversion.inputType != inputFormat || conversion.outputType != outputFormat)
                         continue;
-                    asm volatile("mfence" : : : "memory");
                     conversion.converter(streamFormat.fmt.pix, outputStride, currentMappedBuffer, m_outputBuffer);
                     break;
                 }
@@ -377,7 +377,6 @@ namespace cemu_capture
             {
                 if (conversion.inputType != inputFormat || conversion.outputType != outputFormat)
                     continue;
-                std::atomic_thread_fence(std::memory_order::acquire);
                 conversion.converter(streamFormat.fmt.pix_mp, outputStride, currentBuffers, m_outputBuffer);
                 break;
             }
