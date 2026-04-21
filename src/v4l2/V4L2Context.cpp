@@ -237,7 +237,7 @@ namespace cemu_capture
 
             if (anyErrored)
             {
-                auto [beg, end] = std::ranges::remove_if(m_newEvents, [this](epoll_event& ev)
+                auto [beg, end] = std::ranges::remove_if(events, [this](epoll_event& ev)
                 {
                     if (!(ev.events & EPOLLERR))
                         return false;
@@ -253,7 +253,7 @@ namespace cemu_capture
                     }
                     return true;
                 });
-                m_newEvents.erase(beg, end);
+                events.erase(beg, end);
             }
         }
     }
