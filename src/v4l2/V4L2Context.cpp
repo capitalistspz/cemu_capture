@@ -56,6 +56,7 @@ namespace cemu_capture
     V4L2Context::~V4L2Context()
     {
         m_thread.request_stop();
+        m_hasNewEvent.test_and_set();
         m_hasNewEvent.notify_one();
         m_thread.join();
     }
@@ -207,6 +208,7 @@ namespace cemu_capture
                 assert(!m_newEvents.empty());
                 std::ranges::copy(m_newEvents, std::back_inserter(events));
                 m_newEvents.clear();
+                m_hasNewEvent.clear();
             }
 
             const auto nfds = epoll_wait(m_epollFd.Get(), events.data(), static_cast<int>(events.size()), 100);
