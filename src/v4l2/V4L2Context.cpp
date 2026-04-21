@@ -219,7 +219,15 @@ namespace cemu_capture
             {
                 if (errno == EINTR)
                     continue;
-                throw std::runtime_error(std::string("epoll wait failed: ") + std::strerror(errno));
+                if (errno == EINVAL)
+                {
+                    if (events.empty())
+                        continue;
+                    assert(false && "Epoll FD only closes when this object has been destroyed");
+                }
+                assert(errno != EFAULT);
+                assert(errno != EBADF);
+
             }
             bool anyErrored = false;
             for (auto& event : events)
