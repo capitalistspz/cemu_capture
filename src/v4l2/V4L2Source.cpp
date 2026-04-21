@@ -156,21 +156,53 @@ namespace cemu_capture
                 auto mapping =
                     MemoryMapped<std::uint8_t>(m_fd.Get(), buf.length, PROT_READ | PROT_WRITE, MAP_SHARED,
                                                buf.m.offset);
-                assert(mapping.is_valid());
+                if (!mapping.is_valid())
+                {
+                    if (errno == EMFILE)
+                    {
+                        m_ctx->Log(LogLevel::Warning, "EMFILE: Failed to allocate buffer due to reaching mapped region limit");
+                        break;
+                    }
+                    if (errno == ENOMEM)
+                    {
+                        m_ctx->Log(LogLevel::Warning, "ENOMEM: Not enough memory to allocate mapping");
+                        break;
+                    }
+                    assert(false);
+                }
 
                 m_mappedBuffers.emplace_back(std::move(mapping));
             }
             else if (buf.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
             {
+                bool mapFailed = false;
                 for (auto planeIndex = 0; planeIndex < format.fmt.pix_mp.num_planes; ++planeIndex)
                 {
                     auto mapping =
                         MemoryMapped<std::uint8_t>(m_fd.Get(), buf.m.planes[i].length, PROT_READ | PROT_WRITE,
                                                    MAP_SHARED,
                                                    buf.m.planes[i].m.mem_offset);
+                    if (!mapping.is_valid())
+                    {
+                        mapFailed = true;
+                        if (errno == EMFILE)
+                        {
+                            m_ctx->Log(LogLevel::Warning, "EMFILE: Failed to allocate buffer due to reaching mapped region limit");
+                            break;
+                        }
+                        if (errno == ENOMEM)
+                        {
+                            m_ctx->Log(LogLevel::Warning, "ENOMEM: Not enough memory to allocate mapping");
+                            break;
+                        }
+                        assert(false);
+                    }
+
                     assert(mapping.is_valid());
                     m_mappedBuffers.emplace_back(std::move(mapping));
                 }
+                if (mapFailed)
+                    break;
             }
             res = vidioc::qbuf(m_fd, &buf);
             if (res != 0)
@@ -178,6 +210,8 @@ namespace cemu_capture
                 throw std::runtime_error(std::string("Failed to enqueue buffers: ") + std::strerror(errno));
             }
         }
+        if (m_mappedBuffers.empty())
+            throw std::runtime_error("Failed to map any buffers for capture");
     }
 
     V4L2Source::V4L2Source(std::shared_ptr<V4L2Context> context, FileDescriptor fd, SourceInfo deviceInfo) :
