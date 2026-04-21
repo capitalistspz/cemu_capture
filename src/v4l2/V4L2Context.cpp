@@ -202,6 +202,7 @@ namespace cemu_capture
                 std::unique_lock lock(m_eventMutex);
                 std::ranges::copy(m_newEvents, std::back_inserter(events));
                 m_newEvents.clear();
+                m_hasNewEvent.clear();
             }
             else if (m_hasNewEvent.test()) {
                 std::unique_lock lock(m_eventMutex);
