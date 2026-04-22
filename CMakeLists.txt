@@ -47,9 +47,7 @@ endif ()
 
 
 target_link_libraries(cemu_capture PRIVATE libyuv::libyuv)
-set_target_properties(cemu_capture PROPERTIES
-        XCODE_ATTRIBUTE_ENABLE_DEBUG_DYLIB[variant=Debug] "YES"
-)
+
 if (CEMU_CAPTURE_USE_LIBSYSTEMD)
     target_link_libraries(cemu_capture PRIVATE libsystemd::libsystemd)
     target_compile_definitions(cemu_capture PRIVATE CEMU_CAPTURE_USE_LIBSYSTEMD)
