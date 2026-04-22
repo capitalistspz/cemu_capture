@@ -16,6 +16,11 @@ namespace cemu_capture
     template <typename T, auto Deleter>
     using unique_ptr_cd = std::unique_ptr<T, decltype([](T* p) { Deleter(p); })>;
 
+    constexpr bool HasFlags(auto value, auto flags)
+    {
+        return (value & flags) == flags;
+    }
+
 #if __cpp_lib_out_ptr >= 202106L
     using std::out_ptr;
 #else

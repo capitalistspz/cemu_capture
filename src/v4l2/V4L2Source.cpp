@@ -313,6 +313,7 @@ namespace cemu_capture
         vidioc::streamoff(m_fd, &enable);
         m_stream.reset();
         m_mappedBuffers.clear();
+        m_frameSequenceIndex = 0;
     }
 
     int V4L2Source::GetFd()
@@ -350,8 +351,28 @@ namespace cemu_capture
         buffer.type = streamFormat.type;
         buffer.memory = V4L2_MEMORY_MMAP;
         const auto res = vidioc::dqbuf(m_fd, &buffer);
+        // Shouldn't be possible unless everything is fucked
         if (res == -1)
-            return;
+            throw std::system_error(errno, std::generic_category(), "Failed to dequeue buffer");
+        assert(HasFlags(buffer.flags, V4L2_BUF_FLAG_MAPPED));
+        const auto expectedFrameIndex = m_frameSequenceIndex + 1;
+
+        if (m_frameSequenceIndex != 0 && (buffer.sequence != expectedFrameIndex))
+        {
+            m_ctx->Log(LogLevel::Warning, "Frame received out of order: Expected {}, Got {}", expectedFrameIndex, buffer.sequence);
+        }
+        m_frameSequenceIndex = buffer.sequence;
+
+
+        CaptureErrorType captureErrorType = CaptureErrorType::None;
+        if (HasFlags(buffer.flags, V4L2_BUF_FLAG_ERROR))
+        {
+            captureErrorType = CaptureErrorType::DataCorrupted;
+            m_ctx->Log(LogLevel::Warning, "Frame {} buffer had an error", buffer.sequence);
+        }
+
+        auto errorPolicy = GetFrameErrorPolicy();
+
         uint32_t width;
         uint32_t height;
         uint32_t inputFormat;
@@ -372,7 +393,11 @@ namespace cemu_capture
         const auto outputStride = (m_outputStride != 0) ? m_outputStride : width;
         const auto outputFormat = (m_outputFormat == 0) ? inputFormat : m_outputFormat;
 
-        if (streamFormat.type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+        if (captureErrorType != CaptureErrorType::None && errorPolicy == CaptureErrorPolicy::IgnoreFrame)
+        {
+            // Do nothing
+        }
+        else if (streamFormat.type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
         {
             const auto& currentMappedBuffer = m_mappedBuffers[buffer.index];
             const auto size = SizeByFormat(FromV4L2Format(outputFormat), outputStride, height);
@@ -397,6 +422,7 @@ namespace cemu_capture
                     m_logIfCannotConvert = false;
                 }
             }
+            InvokeCaptureCallback(captureErrorType, m_outputBuffer);
         }
         else if (m_stream->format.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
         {
@@ -414,13 +440,13 @@ namespace cemu_capture
                 conversion.converter(streamFormat.fmt.pix_mp, outputStride, currentBuffers, m_outputBuffer);
                 break;
             }
+            InvokeCaptureCallback(captureErrorType, m_outputBuffer);
         }
         else
         {
             assert(false);
         }
 
-        InvokeCaptureCallback(m_outputBuffer);
         const auto qres = vidioc::qbuf(m_fd, &buffer);
         assert(qres != -1);
     }

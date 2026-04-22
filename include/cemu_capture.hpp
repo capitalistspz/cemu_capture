@@ -34,6 +34,20 @@ namespace cemu_capture
         OutputStride
     };
 
+    enum class CaptureErrorPolicy
+    {
+        // Does not trigger callback and does not update data for Source::Capture
+        IgnoreFrame,
+        // Triggers callback with bad frame data, updates data for Source::Capture
+        PushBadFrame
+    };
+
+    enum class CaptureErrorType
+    {
+        None,
+        DataCorrupted,
+    };
+
     enum class LogLevel
     {
         Info,
@@ -70,11 +84,13 @@ namespace cemu_capture
         virtual std::vector<StreamFormat> EnumerateStreamFormats() = 0;
 
         // Do not call from within the capture callback
+        // Can be called safely from any thread
         virtual void Capture(std::vector<uint8_t>& outputBuffer) = 0;
-        virtual void SetCaptureCallback(std::function<void(Source&, std::span<const uint8_t> bytes)>) = 0;
+        virtual void SetCaptureCallback(std::function<void(Source&, CaptureErrorType, std::span<const uint8_t> bytes)>) = 0;
 
         [[nodiscard]] virtual bool CanConvert(ImageFormat from, ImageFormat to) const = 0;
         virtual void SetOutputFormat(ImageFormat outputFormat) = 0;
+        virtual void SetCaptureErrorPolicy(CaptureErrorPolicy) = 0;
 
         // Throws std::invalid_argument if property does not exist
         virtual void SetProperty(StreamIntProperty property, int propertyValue) = 0;

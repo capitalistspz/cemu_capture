@@ -31,7 +31,7 @@ int main()
         std::println("{} {}x{}@{} fps", FormatToString(format), dimensions.width, dimensions.height, framerate);
     }
     source->SetOutputFormat(cemu_capture::ImageFormat::NV12);
-
+    source->SetCaptureErrorPolicy(cemu_capture::CaptureErrorPolicy::PushBadFrame);
 
     const auto actualFormat = source->StartStreaming({
         .dimensions = {640, 480}, .framerate = 30, .format = cemu_capture::ImageFormat::YUYV
@@ -40,24 +40,30 @@ int main()
         return 1;
     auto rgbBuffer = std::vector<uint8_t>(actualFormat->dimensions.width * actualFormat->dimensions.height * 3);
 
-    source->SetCaptureCallback([&](cemu_capture::Source&, std::span<const std::uint8_t> bytes)
-    {
-        static auto counter = 0u;
-        static auto lastTime = std::chrono::high_resolution_clock::now();
-        const auto dims = actualFormat->dimensions;
-        const auto planeSize = dims.width * dims.height;
-        if (auto file = std::ofstream(std::format("output_{}.bgr", counter)))
+    source->SetCaptureCallback(
+        [&](cemu_capture::Source&, cemu_capture::CaptureErrorType type, std::span<const std::uint8_t> bytes)
         {
-            // Convert to BGR888
-            libyuv::NV12ToRGB24(bytes.data(), dims.width, bytes.data() + planeSize, dims.width, rgbBuffer.data(),
-                                dims.width * 3, dims.width, dims.height);
-            file.write(reinterpret_cast<const std::ostream::char_type*>(rgbBuffer.data()), rgbBuffer.size());
-        }
+            static auto counter = 0u;
+            static auto lastTime = std::chrono::high_resolution_clock::now();
+            const auto dims = actualFormat->dimensions;
+            const auto planeSize = dims.width * dims.height;
 
-        const auto now = std::chrono::high_resolution_clock::now();
-        std::println("{}ms", std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTime).count());
-        lastTime = now;
-    });
+            const auto fileName = std::format("output_{}x{}_{}{}.bgr", dims.width, dims.height, counter++,
+                                        type == cemu_capture::CaptureErrorType::None ? "" : "_bad");
+            if (auto file = std::ofstream(fileName))
+            {
+                // Convert to BGR888
+                libyuv::NV12ToRGB24(bytes.data(), dims.width, bytes.data() + planeSize, dims.width,
+                                    rgbBuffer.data(),
+                                    dims.width * 3, dims.width, dims.height);
+                file.write(reinterpret_cast<const std::ostream::char_type*>(rgbBuffer.data()), rgbBuffer.size());
+            }
+
+
+            const auto now = std::chrono::high_resolution_clock::now();
+            std::println("{}ms", std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTime).count());
+            lastTime = now;
+        });
 
     std::this_thread::sleep_for(std::chrono::seconds(30));
 }

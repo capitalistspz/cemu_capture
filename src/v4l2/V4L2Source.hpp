@@ -50,6 +50,7 @@ namespace cemu_capture
         uint32_t m_outputFormat = 0;
         SourceInfo m_deviceInfo;
         bool m_logIfCannotConvert = false;
+        uint32_t m_frameSequenceIndex;
     };
 }
 #endif
