@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.23)
-project(cemu_capture)
+project(cemu_capture CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CMakeDependentOption)
@@ -45,14 +45,12 @@ else ()
     message(SEND_ERROR "Unsupported platform")
 endif ()
 
-
 target_link_libraries(cemu_capture PRIVATE libyuv::libyuv)
 
 if (CEMU_CAPTURE_USE_LIBSYSTEMD)
     target_link_libraries(cemu_capture PRIVATE libsystemd::libsystemd)
     target_compile_definitions(cemu_capture PRIVATE CEMU_CAPTURE_USE_LIBSYSTEMD)
 endif ()
-
 
 if (CEMU_CAPTURE_BUILD_EXAMPLES)
     add_subdirectory(examples)
