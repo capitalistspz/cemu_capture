@@ -6,7 +6,7 @@
 
 namespace cemu_capture
 {
-	class MFContext : public CommonContext, public std::enable_shared_from_this<MFContext>
+	class MFContext : public ContextCommon, public std::enable_shared_from_this<MFContext>
 	{
 	  public:
 		MFContext();

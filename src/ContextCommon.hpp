@@ -9,7 +9,7 @@
 
 namespace cemu_capture
 {
-    class CommonContext : public Context
+    class ContextCommon : public Context
     {
         std::function<void(LogLevel, std::string_view)> m_logFun;
     public:
@@ -24,7 +24,7 @@ namespace cemu_capture
         {
             m_logFun = std::move(fn);
         }
-        ~CommonContext() override = default;
+        ~ContextCommon() override = default;
     };
 }
 #endif

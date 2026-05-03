@@ -13,7 +13,7 @@ namespace cemu_capture
 {
     class V4L2Source;
 
-    class V4L2Context final : public CommonContext, public std::enable_shared_from_this<V4L2Context>
+    class V4L2Context final : public ContextCommon, public std::enable_shared_from_this<V4L2Context>
     {
         std::optional<SourceInfo> GetDeviceInfo(FileDescriptor& fd, std::string_view deviceFilePath);
         void ThreadFunc(std::stop_token);
