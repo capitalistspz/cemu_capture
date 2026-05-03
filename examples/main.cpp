@@ -1,4 +1,5 @@
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <libyuv.h>
 #include <cemu_capture.hpp>
