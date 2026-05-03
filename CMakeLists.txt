@@ -12,6 +12,18 @@ if (CEMU_CAPTURE_USE_LIBSYSTEMD)
     find_package(libsystemd REQUIRED)
 endif ()
 
+if (WIN32)
+    find_package(WIL REQUIRED)
+
+    find_package(Boost QUIET COMPONENTS nowide)
+    if (NOT Boost_NOWIDE_FOUND)
+        find_package(nowide REQUIRED)
+        set(cemu_capture_nowide_standalone TRUE)
+    else()
+        set(cemu_capture_nowide_standlone FALSE)
+    endif()
+endif()
+
 # VCPKG sets CMAKE_FIND_PACKAGE_PREFER_CONFIG, but doesn't provide libyv::libyuv as a target, so the find module adds that alias
 find_package(libyuv MODULE REQUIRED)
 
@@ -41,7 +53,27 @@ if (UNIX AND NOT APPLE)
 
     )
     message(STATUS "cemu_capture: V4L2 backend")
-else ()
+elseif (WIN32)
+    target_sources(cemu_capture PRIVATE 
+        src/mf/MFContext.cpp 
+        src/mf/MFContext.hpp
+        src/mf/MFSource.cpp
+        src/mf/MFSource.hpp
+        src/mf/Conversion.hpp
+        src/mf/Conversion.cpp
+    )
+    target_compile_definitions(cemu_capture PRIVATE UNICODE _UNICODE)
+    target_link_libraries(cemu_capture PRIVATE WIL::WIL mf mfplat mfreadwrite mfuuid.lib shlwapi.lib)
+    if (cemu_capture_nowide_standalone)
+        target_link_libraries(cemu_capture PRIVATE nowide::nowide)
+        target_compile_definitions(cemu_capture PRIVATE CEMU_CAPTURE_NOWIDE_STANDLONE)
+        message(STATUS "cemu_capture: Using standalone nowide")
+    else()
+        target_link_libraries(cemu_capture PRIVATE Boost::nowide)
+    endif()
+    target_precompile_headers(cemu_capture PRIVATE src/mf/precompiled.hpp)
+    message(STATUS "cemu_capture: MediaFoundation backend")
+else()
     message(SEND_ERROR "Unsupported platform")
 endif ()
 
