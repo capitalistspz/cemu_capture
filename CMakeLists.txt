@@ -50,7 +50,6 @@ if (UNIX AND NOT APPLE)
             src/v4l2/V4L2Context.hpp
             src/v4l2/V4L2Source.cpp
             src/v4l2/V4L2Source.hpp
-
     )
     message(STATUS "cemu_capture: V4L2 backend")
 elseif (WIN32)
@@ -63,7 +62,7 @@ elseif (WIN32)
         src/mf/Conversion.cpp
     )
     target_compile_definitions(cemu_capture PRIVATE UNICODE _UNICODE)
-    target_link_libraries(cemu_capture PRIVATE WIL::WIL mf mfplat mfreadwrite mfuuid.lib shlwapi.lib)
+    target_link_libraries(cemu_capture PRIVATE WIL::WIL mf mfplat mfreadwrite mfuuid shlwapi)
     if (cemu_capture_nowide_standalone)
         target_link_libraries(cemu_capture PRIVATE nowide::nowide)
         target_compile_definitions(cemu_capture PRIVATE CEMU_CAPTURE_NOWIDE_STANDLONE)

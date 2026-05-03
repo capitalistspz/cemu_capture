@@ -96,7 +96,6 @@ namespace cemu_capture
 			EnterCriticalSection(&m_critsec);
 			if (auto ptr = m_source.lock())
 			{
-				//TODO: Figure out why this is only triggered once every ~128ms
 				if (sample != nullptr && SUCCEEDED(hrStatus))
 				{
 					ptr->UpdateData(*sample);
@@ -177,13 +176,17 @@ namespace cemu_capture
 		THROW_IF_FAILED(mediaTypeHandler->SetCurrentMediaType(mediaType.get()));
 		THROW_IF_FAILED(descriptor->SelectStream(selectedStreamFormat->streamIndex));
 
-		wil::com_ptr<IMFAttributes> attributes;
-		THROW_IF_FAILED(MFCreateAttributes(attributes.put(), 1));
+		wil::com_ptr<IMFAttributes> readerAttributes;
+		THROW_IF_FAILED(MFCreateAttributes(readerAttributes.put(), 3));
+
+		// THE MOST important thing for performance, capture speed on my system cratered without converters being disabled
+		THROW_IF_FAILED(readerAttributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE));
+		THROW_IF_FAILED(readerAttributes->SetUINT32(MF_LOW_LATENCY, TRUE));
 
 		auto callbackObj = wil::com_ptr(new ReaderCallback(shared_from_this()));
-		THROW_IF_FAILED(attributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, callbackObj.get()));
+		THROW_IF_FAILED(readerAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, callbackObj.get()));
 		wil::com_ptr<IMFSourceReader> sourceReader;
-		THROW_IF_FAILED(MFCreateSourceReaderFromMediaSource(m_source.get(), attributes.get(), sourceReader.put()));
+		THROW_IF_FAILED(MFCreateSourceReaderFromMediaSource(m_source.get(), readerAttributes.get(), sourceReader.put()));
 		sourceReader->ReadSample(selectedStreamFormat->streamIndex, 0, nullptr, nullptr, nullptr, nullptr);
 		m_stream.emplace(std::move(callbackObj), std::move(sourceReader), selectedStreamFormat->streamIndex, selectedStreamFormat->format);
 
