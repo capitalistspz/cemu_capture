@@ -321,26 +321,6 @@ namespace cemu_capture
         return m_fd.Get();
     }
 
-    constexpr static std::optional<std::size_t> SizeByFormat(ImageFormat fmt, unsigned bytesPerLine, unsigned height)
-    {
-        const auto planeSize = bytesPerLine * height;
-        switch (fmt)
-        {
-        case ImageFormat::NV12:
-        case ImageFormat::NV21:
-            return planeSize + (planeSize >> 1);
-        case ImageFormat::YUYV:
-        case ImageFormat::UYVY:
-            return planeSize * 2;
-        case ImageFormat::RGB24:
-            return planeSize * 3;
-        case ImageFormat::ARGB32:
-            return planeSize * 4;
-        default:
-            return std::nullopt;
-        }
-    }
-
     void V4L2Source::UpdateData()
     {
         std::scoped_lock lock(m_mutex);

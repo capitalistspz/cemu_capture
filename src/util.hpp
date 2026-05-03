@@ -3,7 +3,8 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
-
+#include <optional>
+#include "cemu_capture.hpp"
 
 #if defined(__GNUC__)
 #define UNREACHABLE __builtin_unreachable()
@@ -56,6 +57,26 @@ namespace cemu_capture
     constexpr auto no_bind(auto v)
     {
         return v;
+    }
+
+    constexpr static std::optional<std::size_t> SizeByFormat(ImageFormat fmt, unsigned bytesPerLine, unsigned height)
+    {
+        const auto planeSize = bytesPerLine * height;
+        switch (fmt)
+        {
+        case ImageFormat::NV12:
+        case ImageFormat::NV21:
+            return planeSize + (planeSize >> 1);
+        case ImageFormat::YUYV:
+        case ImageFormat::UYVY:
+            return planeSize * 2;
+        case ImageFormat::RGB24:
+            return planeSize * 3;
+        case ImageFormat::ARGB32:
+            return planeSize * 4;
+        default:
+            return std::nullopt;
+        }
     }
 #endif
 }
