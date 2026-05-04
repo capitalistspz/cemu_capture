@@ -1,5 +1,4 @@
 #include "MFSource.hpp"
-#include "cemu_capture.hpp"
 #include <cassert>
 #include <cguid.h>
 #include <cstdlib>
@@ -12,8 +11,8 @@
 #include <stdexcept>
 #include <wil/com.h>
 #include <wil/result_macros.h>
-#include <Mferror.h>
 #include "Conversion.hpp"
+#include "Common.hpp"
 
 namespace cemu_capture
 {
@@ -62,57 +61,56 @@ namespace cemu_capture
 	class ReaderCallback : public IMFSourceReaderCallback
 	{
 	  public:
-		explicit ReaderCallback(std::weak_ptr<MFSource> source)
+		explicit ReaderCallback(MFSource& source)
 			: m_source(source), m_refCount(1)
 		{
 			InitializeCriticalSection(&m_critsec);
 		}
 
 		// IUnknown methods
-		STDMETHODIMP QueryInterface(REFIID iid, void** ppv)
+		STDMETHODIMP QueryInterface(REFIID iid, void** ppv) override
 		{
 			static const QITAB qit[] =
 				{
 					QITABENT(ReaderCallback, IMFSourceReaderCallback),
-					{0},
+					{},
 				};
 			return QISearch(this, qit, iid, ppv);
 		}
 		STDMETHODIMP_(ULONG)
-		AddRef()
+		AddRef() override
 		{
 			return InterlockedIncrement(&m_refCount);
 		}
 		STDMETHODIMP_(ULONG)
-		Release()
+		Release() override
 		{
-			return InterlockedDecrement(&m_refCount);
+			ULONG count = InterlockedDecrement(&m_refCount);
+			if (count == 0)
+				delete this;
+			return count;
 		}
 
 		// IMFSourceReaderCallback methods
 		STDMETHODIMP OnReadSample(HRESULT hrStatus, DWORD streamIndex,
-								  DWORD streamFlags, LONGLONG timestamp, IMFSample* sample)
+								  DWORD streamFlags, LONGLONG timestamp, IMFSample* sample) override
 		{
 			EnterCriticalSection(&m_critsec);
-			if (auto ptr = m_source.lock())
+			if (sample != nullptr && SUCCEEDED(hrStatus))
 			{
-				if (sample != nullptr && SUCCEEDED(hrStatus))
-				{
-					ptr->UpdateData(*sample);
-				}
-				ptr->RequestNewData(streamIndex);
+				m_source.UpdateData(*sample);
 			}
-
+			m_source.RequestNewData(streamIndex);
 			LeaveCriticalSection(&m_critsec);
 			return S_OK;
 		}
 
-		STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*)
+		STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*) override
 		{
 			return S_OK;
 		}
 
-		STDMETHODIMP OnFlush(DWORD)
+		STDMETHODIMP OnFlush(DWORD) override
 		{
 			return S_OK;
 		}
@@ -125,13 +123,13 @@ namespace cemu_capture
 		};
 
 	  private:
-		std::weak_ptr<MFSource> m_source;
+		MFSource& m_source;
 		long m_refCount;
-		CRITICAL_SECTION m_critsec;
+		CRITICAL_SECTION m_critsec{};
 	};
 
 	MFSource::MFSource(std::shared_ptr<MFContext> ctx, wil::com_ptr<IMFMediaSource> source, SourceInfo sourceInfo)
-		: m_ctx(std::move(ctx)), m_source(std::move(source)), m_info(std::move(sourceInfo))
+		: m_ctx(std::move(ctx)), m_source(std::move(source)), m_info(std::move(sourceInfo)), m_callbackObj(new ReaderCallback(*this))
 	{
 	}
 
@@ -183,12 +181,11 @@ namespace cemu_capture
 		THROW_IF_FAILED(readerAttributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE));
 		THROW_IF_FAILED(readerAttributes->SetUINT32(MF_LOW_LATENCY, TRUE));
 
-		auto callbackObj = wil::com_ptr(new ReaderCallback(shared_from_this()));
-		THROW_IF_FAILED(readerAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, callbackObj.get()));
+		THROW_IF_FAILED(readerAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, m_callbackObj.get()));
 		wil::com_ptr<IMFSourceReader> sourceReader;
 		THROW_IF_FAILED(MFCreateSourceReaderFromMediaSource(m_source.get(), readerAttributes.get(), sourceReader.put()));
 		sourceReader->ReadSample(selectedStreamFormat->streamIndex, 0, nullptr, nullptr, nullptr, nullptr);
-		m_stream.emplace(std::move(callbackObj), std::move(sourceReader), selectedStreamFormat->streamIndex, selectedStreamFormat->format);
+		m_stream.emplace(std::move(sourceReader), selectedStreamFormat->format);
 
 		m_ctx->Log(LogLevel::Info, "Started streaming {}x{}@{}fps", selectedStreamFormat->format.dimensions.width, selectedStreamFormat->format.dimensions.height, selectedStreamFormat->format.framerate);
 		return selectedStreamFormat->format;
@@ -306,10 +303,8 @@ namespace cemu_capture
 		const auto outputStride = m_outputStride ? m_outputStride : format.dimensions.width;
 		const auto outputImageFormat = m_outputImageFormat != ImageFormat::Unspecified ? m_outputImageFormat : format.format;
 		UINT32 frameCorrupted;
-		const auto res = sample.GetUINT32(MFSampleExtension_FrameCorruption, &frameCorrupted);
-		assert(res != MF_E_INVALIDTYPE);
 		// If it failed, then who knows?
-		if (FAILED(res))
+		if (FAILED(sample.GetUINT32(MFSampleExtension_FrameCorruption, &frameCorrupted)))
 			frameCorrupted = false;
 		CaptureErrorType errorType = CaptureErrorType::None;
 		if (frameCorrupted)
@@ -323,8 +318,7 @@ namespace cemu_capture
 		else if (SUCCEEDED(sample.GetBufferCount(&bufferCount)) && bufferCount == 1)
 		{
 			wil::com_ptr_nothrow<IMFMediaBuffer> buffer;
-			const auto getBufRes = sample.GetBufferByIndex(0, buffer.put());
-			assert(getBufRes != E_INVALIDARG);
+			assert_hres_eval(sample.GetBufferByIndex(0, buffer.put()));
 			conversion::Convert(*buffer, format.format, outputImageFormat, outputStride, format.dimensions, m_outputBuffer);
 		}
 		else

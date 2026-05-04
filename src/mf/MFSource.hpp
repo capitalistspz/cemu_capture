@@ -4,20 +4,18 @@
 #include "cemu_capture.hpp"
 #include "../SourceCommon.hpp"
 #include <memory>
-#include <wil/resource.h>
 #include <wil/com.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mutex>
+#include "Common.hpp"
 #include "MFContext.hpp"
 
 namespace cemu_capture
 {
 	struct Stream
 	{
-		wil::com_ptr<IMFSourceReaderCallback> callbackObj;
 		wil::com_ptr<IMFSourceReader> reader;
-		DWORD streamIndex;
 		StreamFormat format;
 	};
 	struct StreamFormatEntry
@@ -53,6 +51,7 @@ namespace cemu_capture
 	  private:
 		std::shared_ptr<MFContext> m_ctx;
 		wil::com_ptr<IMFMediaSource> m_source;
+		wil::com_ptr<IMFSourceReaderCallback> m_callbackObj;
 		std::vector<StreamFormatEntry> m_enumeratedStreamFormats;
 		std::optional<Stream> m_stream;
 		ImageFormat m_outputImageFormat{};

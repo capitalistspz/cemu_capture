@@ -11,8 +11,7 @@ namespace nowide = boost::nowide;
 #if defined(_MSC_VER)
 #define DEBUG_BREAK __debugbreak()
 #else
-#include <csignal>
-#define DEBUG_BREAK raise(SIGTRAP)
+#define DEBUG_BREAK
 #endif
 
 namespace cemu_capture

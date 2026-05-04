@@ -60,6 +60,7 @@ elseif (WIN32)
         src/mf/MFSource.hpp
         src/mf/Conversion.hpp
         src/mf/Conversion.cpp
+        src/mf/Common.hpp
     )
     target_compile_definitions(cemu_capture PRIVATE UNICODE _UNICODE)
     target_link_libraries(cemu_capture PRIVATE WIL::WIL mf mfplat mfreadwrite mfuuid shlwapi)
@@ -70,7 +71,6 @@ elseif (WIN32)
     else()
         target_link_libraries(cemu_capture PRIVATE Boost::nowide)
     endif()
-    target_precompile_headers(cemu_capture PRIVATE src/mf/precompiled.hpp)
     message(STATUS "cemu_capture: MediaFoundation backend")
 else()
     message(SEND_ERROR "Unsupported platform")

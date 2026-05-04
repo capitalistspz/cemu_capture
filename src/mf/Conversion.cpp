@@ -6,6 +6,8 @@
 #include <mfobjects.h>
 #include <libyuv.h>
 #include <algorithm>
+#include <cstring>
+#include "Common.hpp"
 
 namespace cemu_capture::conversion
 {
