@@ -1,6 +1,6 @@
 #ifndef CEMU_CAPTURE_CONTEXT_COMMON_HPP
 #define CEMU_CAPTURE_CONTEXT_COMMON_HPP
-#include <../include/cemu_capture.hpp>
+#include "cemu_capture.hpp"
 
 #include <format>
 #include <functional>

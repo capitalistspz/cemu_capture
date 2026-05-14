@@ -39,6 +39,8 @@ target_sources(cemu_capture
         FILES include/cemu_capture.hpp
 )
 
+set_target_properties(cemu_capture PROPERTIES VERIFY_INTERFACE_HEADER_SETS TRUE)
+
 if (UNIX AND NOT APPLE)
     target_sources(cemu_capture PRIVATE
             src/v4l2/ConversionTable.hpp

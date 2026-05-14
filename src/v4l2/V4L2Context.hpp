@@ -3,9 +3,9 @@
 #include <condition_variable>
 #include <thread>
 
-#include "FileDescriptor.hpp"
+#include "cemu_capture.hpp"
 #include "../ContextCommon.hpp"
-#include "../../include/cemu_capture.hpp"
+#include "FileDescriptor.hpp"
 
 struct epoll_event;
 

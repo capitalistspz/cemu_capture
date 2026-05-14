@@ -4,10 +4,10 @@
 #include <mutex>
 #include <optional>
 #include <vector>
-#include <cemu_capture.hpp>
 #include <linux/videodev2.h>
-#include "../SourceCommon.hpp"
 
+#include "cemu_capture.hpp"
+#include "../SourceCommon.hpp"
 #include "FileDescriptor.hpp"
 #include "MemoryMapped.hpp"
 

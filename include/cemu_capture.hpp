@@ -1,6 +1,7 @@
 #ifndef CEMU_CAPTURE_CAPTURE_HPP
 #define CEMU_CAPTURE_CAPTURE_HPP
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <functional>
